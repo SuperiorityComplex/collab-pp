@@ -57,7 +57,12 @@ function LoginForm({ onSubmit }) {
                     />
                   </FormControl>
 
-                  <Button type="submit" colorScheme="blue" size="lg" w="100%">
+                  <Button
+                    type="submit"
+                    colorScheme="primary"
+                    size="lg"
+                    w="100%"
+                  >
                     Log in
                   </Button>
                 </Stack>
