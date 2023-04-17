@@ -1,0 +1,65 @@
+TODO:
+
+- Put together engineering notebook
+
+Deliver:
+6-10 page paper, due May 7, 11:59pm ET
+--> Paper describes the project, what we did, what we learned
+--> Include link to code in the paper
+
+9 minute presentation, May 1, in class
+
+
+User interface commands:
+
+Create user
+- On join, user will need to create their account
+- If username exists, then fail
+- If username doesn't exist, then succeed and ask to join community
+
+Join community
+- Either 'none' or community name
+- If community exists, then join it.
+- If community doesn't exist, then create the community and join it.
+
+Check action
+- Will tell user that their action is ready, or give the number of seconds until it is ready
+
+Check community
+- Will tell user how many seconds until the next community transaction
+
+Action
+- If user's action is available, then immediately place the pixel
+- If action is unavailable, respond that user must wait
+- gRPC format: Color, row, column, username, community name, time=0
+
+Delayed Action
+- Like regular action, except also specify how many seconds in the future to place
+- If delay is not long enough, then respond that user must wait
+- gRPC format: Color, row, column, username, community name, time=time
+
+Join Community action
+- If action is available before the next community transaction happens, then join the community action
+- If action is unavailable, respond that user must wait
+- gRPC format: Color, row, column, username, community name, time=-1
+
+
+Backend:
+
+Must track all created users and their timers, seconds until their action is available
+- Dict of users and timers
+- thread which wakes up every second and decrements all users timers (requires dict lock)
+
+Simplest way to ensure community transaction is atomic is to have single action queue
+--> consume from the action queue every 0.05 seconds, make sure to lock when consuming
+--> add to the action queue whenever need to, make sure to lock when adding (this can be a separate lock from the consume?)
+
+Track users and their communities:
+- or maybe community info is stored on the user side, might be easier
+- Dict of communities and timers
+
+Server threads:
+- Decrement user actions
+- Decrement community timers
+- Queue an action / transaction
+- Add to canvas by consuming from queue
