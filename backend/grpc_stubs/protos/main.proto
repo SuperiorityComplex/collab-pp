@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+// The chat service definition.
+service PP {
+  // user interfaces
+  rpc CreateUser (UserRequest) returns (UserResponse) {}
+  rpc JoinCommunity (UserRequest) returns (UserResponse) {}
+  rpc CheckActionDelay (UserRequest) returns (UserResponse) {}
+  rpc CheckCommunity (UserRequest) returns (UserResponse) {}
+  rpc NormalAction (UserRequest) returns (UserResponse) {}
+  rpc DelayedAction (UserRequest) returns (UserResponse) {}
+  rpc JoinCommunityTransaction (UserRequest) returns (UserResponse) {}
+
+  // interface with the frontend canvas visualization
+  rpc DisplayCanvas (FrontendRequest) returns (stream Canvas) {}
+}
+
+message UserRequest {
+  string color = 1;
+  int32 row = 2;
+  int32 col = 3;
+  string username = 4;
+  string community = 5;
+  int32 delay = 6;
+}
+
+message UserResponse {
+  string message = 1;
+}
+
+message FrontendRequest {
+  
+}
+
+// csv serialization of the pixel colors in the canvas
+message Canvas {
+  string canvas = 1;
+}

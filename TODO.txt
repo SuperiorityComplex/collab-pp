@@ -9,6 +9,9 @@ Deliver:
 
 9 minute presentation, May 1, in class
 
+Idea: Two different "clients"
+- App frontend, displays the canvas, can be through its own separate process
+- Users interface, where people can enter their actions, but they don't have access to see the canvas
 
 User interface commands:
 
@@ -38,7 +41,7 @@ Delayed Action
 - If delay is not long enough, then respond that user must wait
 - gRPC format: Color, row, column, username, community name, time=time
 
-Join Community action
+Join Community transaction
 - If action is available before the next community transaction happens, then join the community action
 - If action is unavailable, respond that user must wait
 - gRPC format: Color, row, column, username, community name, time=-1
