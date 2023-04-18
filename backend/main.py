@@ -25,13 +25,20 @@ user_delays = {}
 # dict for users in a community {username: community}
 user_communities = {}
 
+# delayed actions [(delay, Action, username)]
+delayed_actions = []
+# delayed users [username]
+delayed_users = []
+
 # dict for community delays
 community_delays = {}
 
 # lock for delays dictionaries
 delay_lock = threading.Lock()
-# lock for queue
+# lock for Action queue
 queue_lock = threading.Lock()
+# lock for delayed Actions
+delayed_actions_lock = threading.Lock()
 
 # queue of pixel actions
 action_queue = []
@@ -48,7 +55,7 @@ class Action():
         self.row = row
         self.col = col
 
-def PPServicer(main_pb2_grpc.PPServicer):
+class PPServicer(main_pb2_grpc.PPServicer):
     def CreateUser(self, request, context):
         '''
         Creates a user if it doesn't exist. If it does exist, fails.
@@ -83,7 +90,7 @@ def PPServicer(main_pb2_grpc.PPServicer):
             message = "Error: User doesn't exist."
         
         # community exists
-        else if community in community_delays.keys():
+        elif community in community_delays.keys():
             user_communities[username] = community
             message = "Successfully joined " + community
 
@@ -106,6 +113,8 @@ def PPServicer(main_pb2_grpc.PPServicer):
         delay_lock.acquire()
         if username not in user_delays.keys():
             message = "Error: User doesn't exist."
+        elif username in delayed_users:
+            # TODO
         else:
             delay = user_delays[username]
             message = "Delay for " + username + " is " + str(delay)
@@ -135,16 +144,33 @@ def PPServicer(main_pb2_grpc.PPServicer):
 
     def NormalAction(self, request, context):
         '''
-        
+        Normal user action, no delay.
         '''
         username = request.username
         act = Action(request.color, request.row, request.col)
 
         delay_lock.acquire()
+        
+        # user doesn't exist
         if username not in user_delays.keys():
             delay_lock.release()
             return main_pb2.UserResponse(message="Error: User doesn't exist.")
         
+        # user has pending delayed action
+        if username in delayed_users: # read-only, will not grab lock
+            delay_lock.release()
+
+            pending_delay = 0
+            # honestly could be a concurrency issue but hope not lmao, only doing reads
+            for delay, _, user in delayed_actions:
+                if username == user:
+                    pending_delay = delay
+                    break
+
+            message = "Error: You have a pending delayed action, which will be added in " + str(pending_delay)
+            return main_pb2.UserResponse(message=message)
+
+        # user's delay is not yet done
         if user_delays[username] != 0:
             message = "Error: Cannot make an action, user delay is " + str(user_delays[username])
             delay_lock.release()
@@ -164,15 +190,60 @@ def PPServicer(main_pb2_grpc.PPServicer):
 
     def DelayedAction(self, request, context):
         '''
-
+        Add a delayed action for this user.
         '''
-        # TODO: needs more functionality
+        username = request.username
+        act = Action(request.color, request.row, request.col)
+        delay = request.delay
+
+        delay_lock.acquire()
+        
+        # user doesn't exist
+        if username not in user_delays.keys():
+            delay_lock.release()
+            return main_pb2.UserResponse(message="Error: User doesn't exist.")
+        
+        # user has pending delayed action
+        if username in delayed_users: # read-only, will not grab lock
+            delay_lock.release()
+
+            pending_delay = 0
+            # honestly could be a concurrency issue but hope not lmao, only doing reads
+            for delay, _, user in delayed_actions:
+                if username == user:
+                    pending_delay = delay
+                    break
+
+            message = "Error: You have a pending delayed action, which will be added in " + str(pending_delay)
+            return main_pb2.UserResponse(message=message)
+
+        # user's delay is not yet done
+        if user_delays[username] > delay:
+            message = "Error: Cannot make this delayed action, user delay is " + str(user_delays[username])
+            delay_lock.release()
+            return main_pb2.UserResponse(message=message)
+
+        else:
+            user_delays[username] = 0
+            delay_lock.release()
+
+            delayed_actions_lock.acquire()
+            delayed_users.append(username)
+            delayed_actions.append((delay, act, username))
+            delayed_actions_lock.release()
+
+            message = "Successfully added delayed action."
+
+        return main_pb2.UserResponse(message=message)
 
     def JoinCommunityTransaction(self, request, context):
         '''
 
         '''
         # TODO: needs more functionality
+        # --> should be dict for {community: [users in community action]}, also {community: [Actions in batch]}
+        # remember to check that the user's delay is less or equal to the time until the next community transaction
+        pass
 
     def DisplayCanvas(self, request, context):
         '''
@@ -206,7 +277,7 @@ def decrement_delays():
     '''
     starttime = time.time()
 
-    while True:
+    while run_event.is_set():
         delay_lock.acquire()
 
         for user in user_delays.keys():
@@ -223,9 +294,11 @@ def decrement_delays():
 
 def update_canvas():
     '''
-    wakes up every 0.25 seconds and adds a pixel action to the canvas
+    wakes up every 0.1 seconds and adds a pixel action to the canvas
     '''
-    while True:
+    global canvas
+
+    while run_event.is_set():
         time.sleep(0.1)
         queue_lock.acquire()
 
@@ -236,6 +309,38 @@ def update_canvas():
         queue_lock.release()
 
 
+def decrement_delayed_actions():
+    '''
+    wake up every second and decrement delayed_actions list, add to action queue if hits zero
+    '''
+    starttime = time.time()
+
+    global delayed_actions
+
+    while run_event.is_set():
+        delayed_actions_lock.acquire()
+
+        for i, (delay, act, username) in enumerate(delayed_actions):
+            delayed_actions[i] = (delay-1, act, username)
+            if delay <= 0:
+                # add action to the queue
+                queue_lock.acquire()
+                action_queue.append(act)
+                queue_lock.release()
+
+                # release username, reset delay
+                delay_lock.acquire()
+                user_delays[username] = default_user_delay
+                delay_lock.release()
+                delayed_users.remove(username)
+                
+        delayed_actions = [i for i in delayed_actions if i[0] > -1]
+
+        delayed_actions_lock.release()
+
+        time.sleep(1.0 - ((time.time() - starttime) % 1.0))
+
+
 def gracefully_shutdown():
     """
     Gracefully shuts down the server.
@@ -244,7 +349,6 @@ def gracefully_shutdown():
     """
     print("Shutting down.") # UI message
     run_event.clear()
-    server.stop(0)
     try:
         for thread in running_threads:
             thread.join()
@@ -257,10 +361,20 @@ def main():
     run_event.set()
     try:
         init_canvas()
-        # TODO: start the two threads decrement_delays, update_canvas here
-        # TODO: there needs to be a different thread that adds community transaction when it hits zero (needs data structure per community for actions list) {community: [Actions]}
-        # TODO: something needs to handle delayed actions - maybe another structure holds delayed actions and a thread decrements then adds them to action queue? [(Action, delay)]
+        decrement_thread = threading.Thread(target=(decrement_delays), args=())
+        update_thread = threading.Thread(target=(update_canvas), args=())
+        decrement_delayed_actions_thread = threading.Thread(target=(decrement_delayed_actions), args=())
 
+        decrement_thread.start()
+        update_thread.start()
+        decrement_delayed_actions_thread.start()
+
+        running_threads.append(decrement_thread)
+        running_threads.append(update_thread)
+        running_threads.append(decrement_delayed_actions_thread)
+
+        # TODO: there needs to be a different thread that adds community transaction when it hits zero (needs data structure per community for actions list) {community: [Actions]}
+        
         server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=10))
         main_pb2_grpc.add_PPServicer_to_server(PPServicer(), server)        
 
@@ -272,6 +386,7 @@ def main():
         server.wait_for_termination()
     
     except KeyboardInterrupt:
+        server.stop(0)
         gracefully_shutdown()
         
     return

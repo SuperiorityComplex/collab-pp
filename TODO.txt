@@ -66,3 +66,11 @@ Server threads:
 - Decrement community timers
 - Queue an action / transaction
 - Add to canvas by consuming from queue
+
+
+Tests:
+- Make sure from each user standpoint, they can do normal action, delayed action, community transaction
+- For normal action, make sure cannot submit an action until the delay is over
+- For delayed action, make sure cannot submit another action until the delayed action has been added to canvas and delay is once again waited
+
+TODO: run the gamut of tests for delayed action, really not sure if it's clean code
