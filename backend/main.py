@@ -28,19 +28,61 @@ user_communities = {}
 # dict for community delays
 community_delays = {}
 
+# lock for delays dictionaries
+delay_lock = None
+# lock for queue
+queue_lock = None
+
+canvas_dim = 10
+canvas = []
 
 def PPServicer(main_pb2_grpc.PPServicer):
-    # TODO
+    # TODO: fill in the backend
+    def CreateUser(self, request, context):
+        
 
-'''
-TODO: server threads
-- response thread, responds to user requests (main thread started by start_server)
-    does normal responses to user actions
-    queue an action / transaction
+    def JoinCommunity(self, request, context):
+        
 
-- wake up every second and decrement user delays, community delays
-- add to canvas by consuming from action queue, every 0.1 seconds
-'''
+    def CheckActionDelay(self, request, context):
+        
+
+    def CheckCommunity(self, request, context):
+        
+
+    def NormalAction(self, request, context):
+        
+
+    def DelayedAction(self, request, context):
+        
+
+    def JoinCommunityTransaction(self, request, context):
+        
+
+    def DisplayCanvas(self, request, context):
+        
+
+def init_canvas():
+    '''
+    init canvas to empty
+    '''
+    global canvas
+    canvas = [ ["#FFFFFF"]*canvas_dim for i in range(canvas_dim)]
+
+def serialize_canvas():
+    '''
+    serialize the canvas to string to send over grpc
+    '''
+    global canvas
+    serialized = ','.join(str(pixel) for row in canvas for pixel in row)
+    return serialized
+
+
+def decrement_delays():
+    # TODO: wake up every second, delay_lock, and decrement user_delays, community_delays
+
+def update_canvas():
+    # TODO: wake up every 0.1 second, queue_lock, update the canvas with one action
 
 def gracefully_shutdown():
     """
@@ -62,6 +104,9 @@ def gracefully_shutdown():
 def main():
     run_event.set()
     try:
+        init_canvas()
+        # TODO: start the two threads decrement_delays, update_canvas here
+
         server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=10))
         main_pb2_grpc.add_PPServicer_to_server(PPServicer(), server)        
 
