@@ -39,6 +39,9 @@ action_queue = []
 canvas_dim = 10
 canvas = []
 
+default_community_delay = 120
+default_user_delay = 60
+
 class Action():
     def __init__(self, color, row, col):
         self.color = color
@@ -86,7 +89,7 @@ def PPServicer(main_pb2_grpc.PPServicer):
 
         # community doesn't exist
         else:
-            community_delays[community] = 120
+            community_delays[community] = default_community_delay
             user_communities[username] = community
             message = "Created and joined new community: " + community
         delay_lock.release()
@@ -102,7 +105,7 @@ def PPServicer(main_pb2_grpc.PPServicer):
         
         delay_lock.acquire()
         if username not in user_delays.keys():
-            message = "Error: User doesn't exists."
+            message = "Error: User doesn't exist."
         else:
             delay = user_delays[username]
             message = "Delay for " + username + " is " + str(delay)
@@ -118,7 +121,7 @@ def PPServicer(main_pb2_grpc.PPServicer):
         
         delay_lock.acquire()
         if username not in user_delays.keys():
-            message = "Error: User doesn't exists."
+            message = "Error: User doesn't exist."
         else:
             community = user_communities[username]
             if community == "NO_COMM":
@@ -132,21 +135,44 @@ def PPServicer(main_pb2_grpc.PPServicer):
 
     def NormalAction(self, request, context):
         '''
-
+        
         '''
-        asdf 
+        username = request.username
+        act = Action(request.color, request.row, request.col)
+
+        delay_lock.acquire()
+        if username not in user_delays.keys():
+            delay_lock.release()
+            return main_pb2.UserResponse(message="Error: User doesn't exist.")
+        
+        if user_delays[username] != 0:
+            message = "Error: Cannot make an action, user delay is " + str(user_delays[username])
+            delay_lock.release()
+            return main_pb2.UserResponse(message=message)
+
+        else:
+            user_delays[username] = default_user_delay
+            delay_lock.release()
+
+            queue_lock.acquire()
+            action_queue.append(act)
+            queue_lock.release()
+
+            message = "Successfully added action."
+
+        return main_pb2.UserResponse(message=message)
 
     def DelayedAction(self, request, context):
         '''
 
         '''
-        asdf 
+        # TODO: needs more functionality
 
     def JoinCommunityTransaction(self, request, context):
         '''
 
         '''
-        asdf 
+        # TODO: needs more functionality
 
     def DisplayCanvas(self, request, context):
         '''
@@ -200,7 +226,7 @@ def update_canvas():
     wakes up every 0.25 seconds and adds a pixel action to the canvas
     '''
     while True:
-        time.sleep(0.25)
+        time.sleep(0.1)
         queue_lock.acquire()
 
         if(len(action_queue) > 0):
