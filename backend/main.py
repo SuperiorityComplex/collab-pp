@@ -5,6 +5,7 @@ import sys
 import concurrent.futures
 import time
 import random
+import copy
 import json
 sys.path.append('./grpc_stubs')
 import main_pb2
@@ -30,8 +31,12 @@ delayed_actions = []
 # delayed users [username]
 delayed_users = []
 
-# dict for community delays
+# dict for community delays {community: delay}
 community_delays = {}
+# community batched actions {community: [Action]}
+community_actions = {}
+# users participating in community action {community: [username]}
+community_transaction_users = {}
 
 # lock for delays dictionaries
 delay_lock = threading.Lock()
@@ -39,6 +44,8 @@ delay_lock = threading.Lock()
 queue_lock = threading.Lock()
 # lock for delayed Actions
 delayed_actions_lock = threading.Lock()
+# lock for community transactions
+community_transaction_lock = threading.Lock()
 
 # queue of pixel actions
 action_queue = []
@@ -73,8 +80,6 @@ class PPServicer(main_pb2_grpc.PPServicer):
 
         return main_pb2.UserResponse(message=message)
 
-
-
     def JoinCommunity(self, request, context):
         '''
         Joins a community.
@@ -88,6 +93,10 @@ class PPServicer(main_pb2_grpc.PPServicer):
         delay_lock.acquire()
         if username not in user_communities.keys():
             message = "Error: User doesn't exist."
+
+        # user is already part of a community
+        if user_communities[username] != "NO_COMM":
+            message = "Error: User is already part of community: " + user_communities[username]
         
         # community exists
         elif community in community_delays.keys():
@@ -96,13 +105,18 @@ class PPServicer(main_pb2_grpc.PPServicer):
 
         # community doesn't exist
         else:
+            community_transaction_lock.acquire()
             community_delays[community] = default_community_delay
             user_communities[username] = community
+            community_actions[community] = []
+            community_transaction_users[community] = []
+            community_transaction_lock.release()
+
             message = "Created and joined new community: " + community
+
         delay_lock.release()
 
         return main_pb2.UserResponse(message=message)
-
 
     def CheckActionDelay(self, request, context):
         '''
@@ -111,16 +125,39 @@ class PPServicer(main_pb2_grpc.PPServicer):
         username = request.username
         
         delay_lock.acquire()
+        
+        # user doesn't exist
         if username not in user_delays.keys():
-            message = "Error: User doesn't exist."
-        elif username in delayed_users:
-            # TODO
+            delay_lock.release()
+            return main_pb2.UserResponse(message="Error: User doesn't exist.")
+        
+        # user has pending delayed action
+        if username in delayed_users: # read-only, will not grab lock
+            delay_lock.release()
+
+            pending_delay = 0
+            # honestly could be a concurrency issue but hope not lmao, only doing reads
+            for delay, _, user in delayed_actions:
+                if username == user:
+                    pending_delay = delay
+                    break
+
+            message = username + " has a pending delayed action, which will be added in " + str(pending_delay)
+            return main_pb2.UserResponse(message=message)
+        
+        # user is part of a community transaction
+        community = user_communities[username]
+        if community != "NO_COMM" and username in community_transaction_users[community]:
+            comm_delay = community_delays[community]
+            delay_lock.release()
+            message = username + " is pending in a community transaction, which will be added in " + str(comm_delay)
+            return main_pb2.UserResponse(message=message)
+
         else:
             delay = user_delays[username]
+            delay_lock.release()
             message = "Delay for " + username + " is " + str(delay)
-        delay_lock.release()
-
-        return main_pb2.UserResponse(message=message)
+            return main_pb2.UserResponse(message=message)
 
     def CheckCommunity(self, request, context):
         '''
@@ -170,6 +207,12 @@ class PPServicer(main_pb2_grpc.PPServicer):
             message = "Error: You have a pending delayed action, which will be added in " + str(pending_delay)
             return main_pb2.UserResponse(message=message)
 
+        # user is already part of a community transaction
+        community = user_communities[username]
+        if community != "NO_COMM" and username in community_transaction_users[community]:
+            delay_lock.release()
+            return main_pb2.UserResponse(message="Error: User already in community transaction.")
+
         # user's delay is not yet done
         if user_delays[username] != 0:
             message = "Error: Cannot make an action, user delay is " + str(user_delays[username])
@@ -217,6 +260,12 @@ class PPServicer(main_pb2_grpc.PPServicer):
             message = "Error: You have a pending delayed action, which will be added in " + str(pending_delay)
             return main_pb2.UserResponse(message=message)
 
+        # user is already part of a community transaction
+        community = user_communities[username]
+        if community != "NO_COMM" and username in community_transaction_users[community]:
+            delay_lock.release()
+            return main_pb2.UserResponse(message="Error: User already in community transaction.")
+
         # user's delay is not yet done
         if user_delays[username] > delay:
             message = "Error: Cannot make this delayed action, user delay is " + str(user_delays[username])
@@ -238,12 +287,64 @@ class PPServicer(main_pb2_grpc.PPServicer):
 
     def JoinCommunityTransaction(self, request, context):
         '''
-
+        User joins community transaction
         '''
-        # TODO: needs more functionality
-        # --> should be dict for {community: [users in community action]}, also {community: [Actions in batch]}
-        # remember to check that the user's delay is less or equal to the time until the next community transaction
-        pass
+        username = request.username
+        act = Action(request.color, request.row, request.col)
+
+        delay_lock.acquire()
+        
+        # user doesn't exist
+        if username not in user_delays.keys():
+            delay_lock.release()
+            return main_pb2.UserResponse(message="Error: User doesn't exist.")
+        
+        # user isn't part of a community
+        if user_communities[username] == "NO_COMM":
+            delay_lock.release()
+            return main_pb2.UserResponse(message="Error: User not part of a community.")
+
+        # user has pending delayed action
+        if username in delayed_users: # read-only, will not grab lock
+            delay_lock.release()
+
+            pending_delay = 0
+            for delay, _, user in delayed_actions:
+                if username == user:
+                    pending_delay = delay
+                    break
+
+            message = "Error: You have a pending delayed action, which will be added in " + str(pending_delay)
+            return main_pb2.UserResponse(message=message)
+
+        community = user_communities[username]
+        community_delay = community_delays[community]
+
+        # user is already part of a community transaction
+        if username in community_transaction_users[community]:
+            delay_lock.release()
+            return main_pb2.UserResponse(message="Error: User already in community transaction.")
+
+        # user's delay is not yet done
+        if user_delays[username] > community_delay:
+            message = "Error: Cannot join community transaction, user delay is " + str(user_delays[username]) + " and community delay is " + str(community_delay)
+            delay_lock.release()
+            return main_pb2.UserResponse(message=message)
+
+        else:
+            user_delays[username] = 0
+            delay_lock.release()
+
+            community_transaction_lock.acquire()
+
+            community_actions[community].append(act)
+            community_transaction_users[community].append(username)
+            
+            community_transaction_lock.release()
+
+            message = "Successfully joined community transaction."
+
+        return main_pb2.UserResponse(message=message)
 
     def DisplayCanvas(self, request, context):
         '''
@@ -270,7 +371,6 @@ def serialize_canvas():
 
     return serialized
 
-
 def decrement_delays():
     '''
     wake up every second and decrement user_delays, community_delays
@@ -288,9 +388,38 @@ def decrement_delays():
             val = user_delays[community]
             community_delays[community] = val - 1 if val > 0 else 0
 
+            if community_delays[community] == 0:
+                community_transaction(community)
+
         delay_lock.release()
 
         time.sleep(1.0 - ((time.time() - starttime) % 1.0))
+
+def community_transaction(community):
+    '''
+    process a community transaction since its delay has hit zero.
+    should be holding delay_lock when this is called.
+    '''
+    # avoiding nested lock acquiring
+    community_delays[community] = default_community_delay
+    delay_lock.release()
+
+    actions = []
+
+    community_transaction_lock.acquire()
+
+    if len(community_actions[community]) > 0:
+        actions = copy.deepcopy(community_actions[community])
+        community_actions[community] = []
+        community_transaction_users[community] = []
+
+    community_transaction_lock.release()
+
+    queue_lock.acquire() 
+    action_queue.extend(actions)
+    queue_lock.release()
+
+    delay_lock.acquire()
 
 def update_canvas():
     '''
@@ -307,7 +436,6 @@ def update_canvas():
             canvas[act.row][act.col] = act.color
 
         queue_lock.release()
-
 
 def decrement_delayed_actions():
     '''
@@ -340,7 +468,6 @@ def decrement_delayed_actions():
 
         time.sleep(1.0 - ((time.time() - starttime) % 1.0))
 
-
 def gracefully_shutdown():
     """
     Gracefully shuts down the server.
@@ -372,8 +499,6 @@ def main():
         running_threads.append(decrement_thread)
         running_threads.append(update_thread)
         running_threads.append(decrement_delayed_actions_thread)
-
-        # TODO: there needs to be a different thread that adds community transaction when it hits zero (needs data structure per community for actions list) {community: [Actions]}
         
         server = grpc.server(concurrent.futures.ThreadPoolExecutor(max_workers=10))
         main_pb2_grpc.add_PPServicer_to_server(PPServicer(), server)        
