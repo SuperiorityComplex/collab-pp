@@ -72,5 +72,8 @@ Tests:
 - Make sure from each user standpoint, they can do normal action, delayed action, community transaction
 - For normal action, make sure cannot submit an action until the delay is over
 - For delayed action, make sure cannot submit another action until the delayed action has been added to canvas and delay is once again waited
+- Same for community action, make sure user cannot submit another action while they are part of a community action
 
-TODO: run the gamut of tests for delayed action, really not sure if it's clean code
+TODO: run the gamut of tests for delayed action, community action, really not sure if it's clean code.
+
+In the demo, we should probably only have like 5 people join the demo instead of the whole class, there might be some concurrency issues which may lead to deadlock
