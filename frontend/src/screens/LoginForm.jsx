@@ -11,19 +11,40 @@ import {
   Heading,
 } from "@chakra-ui/react";
 import Layout from "../components/Layout";
+import ErrorBanner from "../components/ErrorBanner";
+import client from "../grpc_stubs/PPClient";
+import { useUser } from "../context/UserContext";
+import { UserRequest } from "../grpc_stubs/protos/main_grpc_web_pb";
 
-function LoginForm({ onSubmit }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+function LoginForm() {
+  const { setUsername } = useUser();
+  const [formUsername, setFormUsername] = useState("");
+  const [error, setError] = useState(null);
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    // perform login logic here
-    onSubmit();
+    const userRequest = new UserRequest();
+    userRequest.setUsername(formUsername);
+    client.createUser(userRequest, {}, (err, response) => {
+      const msg = response.getMessage();
+      if (
+        err
+        //  || msg === "Error: User already exists."
+      ) {
+        setError(msg);
+      } else {
+        setUsername(formUsername);
+      }
+    });
   };
 
   return (
     <Layout>
+      <ErrorBanner
+        message={error}
+        show={error}
+        setShow={(value) => setError(value)}
+      />
       <Box
         bg="gray.800"
         minH="100vh"
@@ -42,21 +63,10 @@ function LoginForm({ onSubmit }) {
                     <Input
                       type="text"
                       placeholder="Enter your username"
-                      value={username}
-                      onChange={(event) => setUsername(event.target.value)}
+                      value={formUsername}
+                      onChange={(event) => setFormUsername(event.target.value)}
                     />
                   </FormControl>
-
-                  <FormControl isRequired>
-                    <FormLabel>password</FormLabel>
-                    <Input
-                      type="password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                    />
-                  </FormControl>
-
                   <Button
                     type="submit"
                     colorScheme="primary"
