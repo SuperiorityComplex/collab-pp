@@ -12,7 +12,8 @@ service PP {
   rpc JoinCommunityTransaction (UserRequest) returns (UserResponse) {}
 
   // interface with the frontend canvas visualization
-  rpc DisplayCanvas (FrontendRequest) returns (stream Canvas) {}
+  // cannot use stream, see this: https://stackoverflow.com/questions/58581333/how-to-use-grpc-streaming-in-grpc-web
+  rpc DisplayCanvas (FrontendRequest) returns (Canvas) {}
 }
 
 message UserRequest {

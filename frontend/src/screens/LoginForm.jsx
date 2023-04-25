@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -11,7 +11,7 @@ import {
   Heading,
 } from "@chakra-ui/react";
 import Layout from "../components/Layout";
-import ErrorBanner from "../components/ErrorBanner";
+import MessageBanner from "../components/MessageBanner";
 import client from "../grpc_stubs/PPClient";
 import { useUser } from "../context/UserContext";
 import { UserRequest } from "../grpc_stubs/protos/main_grpc_web_pb";
@@ -20,6 +20,15 @@ function LoginForm() {
   const { setUsername } = useUser();
   const [formUsername, setFormUsername] = useState("");
   const [error, setError] = useState(null);
+  const messageTimer = useRef(null);
+
+  const setServerMsgWrapper = (msg) => {
+    clearTimeout(messageTimer.current);
+    setError(msg);
+    messageTimer.current = setTimeout(() => {
+      setError(null);
+    }, 1000);
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -31,7 +40,7 @@ function LoginForm() {
         err
         //  || msg === "Error: User already exists."
       ) {
-        setError(msg);
+        setServerMsgWrapper(msg);
       } else {
         setUsername(formUsername);
       }
@@ -40,11 +49,7 @@ function LoginForm() {
 
   return (
     <Layout>
-      <ErrorBanner
-        message={error}
-        show={error}
-        setShow={(value) => setError(value)}
-      />
+      {error && <MessageBanner message={error} />}
       <Box
         bg="gray.800"
         minH="100vh"

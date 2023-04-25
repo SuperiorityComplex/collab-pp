@@ -50,7 +50,7 @@ class PPStub(object):
                 request_serializer=main__pb2.UserRequest.SerializeToString,
                 response_deserializer=main__pb2.UserResponse.FromString,
                 )
-        self.DisplayCanvas = channel.unary_stream(
+        self.DisplayCanvas = channel.unary_unary(
                 '/PP/DisplayCanvas',
                 request_serializer=main__pb2.FrontendRequest.SerializeToString,
                 response_deserializer=main__pb2.Canvas.FromString,
@@ -106,6 +106,7 @@ class PPServicer(object):
 
     def DisplayCanvas(self, request, context):
         """interface with the frontend canvas visualization
+        cannot use stream, see this: https://stackoverflow.com/questions/58581333/how-to-use-grpc-streaming-in-grpc-web
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -149,7 +150,7 @@ def add_PPServicer_to_server(servicer, server):
                     request_deserializer=main__pb2.UserRequest.FromString,
                     response_serializer=main__pb2.UserResponse.SerializeToString,
             ),
-            'DisplayCanvas': grpc.unary_stream_rpc_method_handler(
+            'DisplayCanvas': grpc.unary_unary_rpc_method_handler(
                     servicer.DisplayCanvas,
                     request_deserializer=main__pb2.FrontendRequest.FromString,
                     response_serializer=main__pb2.Canvas.SerializeToString,
@@ -295,7 +296,7 @@ class PP(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/PP/DisplayCanvas',
+        return grpc.experimental.unary_unary(request, target, '/PP/DisplayCanvas',
             main__pb2.FrontendRequest.SerializeToString,
             main__pb2.Canvas.FromString,
             options, channel_credentials,

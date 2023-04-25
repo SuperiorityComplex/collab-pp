@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nmain.proto\"j\n\x0bUserRequest\x12\r\n\x05\x63olor\x18\x01 \x01(\t\x12\x0b\n\x03row\x18\x02 \x01(\x05\x12\x0b\n\x03\x63ol\x18\x03 \x01(\x05\x12\x10\n\x08username\x18\x04 \x01(\t\x12\x11\n\tcommunity\x18\x05 \x01(\t\x12\r\n\x05\x64\x65lay\x18\x06 \x01(\x05\"\x1f\n\x0cUserResponse\x12\x0f\n\x07message\x18\x01 \x01(\t\"\x11\n\x0f\x46rontendRequest\"\x18\n\x06\x43\x61nvas\x12\x0e\n\x06\x63\x61nvas\x18\x01 \x01(\t2\x8f\x03\n\x02PP\x12+\n\nCreateUser\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12.\n\rJoinCommunity\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12\x31\n\x10\x43heckActionDelay\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12/\n\x0e\x43heckCommunity\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12-\n\x0cNormalAction\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12.\n\rDelayedAction\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12\x39\n\x18JoinCommunityTransaction\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12.\n\rDisplayCanvas\x12\x10.FrontendRequest\x1a\x07.Canvas\"\x00\x30\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nmain.proto\"j\n\x0bUserRequest\x12\r\n\x05\x63olor\x18\x01 \x01(\t\x12\x0b\n\x03row\x18\x02 \x01(\x05\x12\x0b\n\x03\x63ol\x18\x03 \x01(\x05\x12\x10\n\x08username\x18\x04 \x01(\t\x12\x11\n\tcommunity\x18\x05 \x01(\t\x12\r\n\x05\x64\x65lay\x18\x06 \x01(\x05\"\x1f\n\x0cUserResponse\x12\x0f\n\x07message\x18\x01 \x01(\t\"\x11\n\x0f\x46rontendRequest\"\x18\n\x06\x43\x61nvas\x12\x0e\n\x06\x63\x61nvas\x18\x01 \x01(\t2\x8d\x03\n\x02PP\x12+\n\nCreateUser\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12.\n\rJoinCommunity\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12\x31\n\x10\x43heckActionDelay\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12/\n\x0e\x43heckCommunity\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12-\n\x0cNormalAction\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12.\n\rDelayedAction\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12\x39\n\x18JoinCommunityTransaction\x12\x0c.UserRequest\x1a\r.UserResponse\"\x00\x12,\n\rDisplayCanvas\x12\x10.FrontendRequest\x1a\x07.Canvas\"\x00\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'main_pb2', globals())
@@ -29,5 +29,5 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _CANVAS._serialized_start=174
   _CANVAS._serialized_end=198
   _PP._serialized_start=201
-  _PP._serialized_end=600
+  _PP._serialized_end=598
 # @@protoc_insertion_point(module_scope)

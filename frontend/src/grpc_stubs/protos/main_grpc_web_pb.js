@@ -508,7 +508,7 @@ proto.PPPromiseClient.prototype.joinCommunityTransaction =
  */
 const methodDescriptor_PP_DisplayCanvas = new grpc.web.MethodDescriptor(
   '/PP/DisplayCanvas',
-  grpc.web.MethodType.SERVER_STREAMING,
+  grpc.web.MethodType.UNARY,
   proto.FrontendRequest,
   proto.Canvas,
   /**
@@ -523,32 +523,37 @@ const methodDescriptor_PP_DisplayCanvas = new grpc.web.MethodDescriptor(
 
 
 /**
- * @param {!proto.FrontendRequest} request The request proto
- * @param {?Object<string, string>=} metadata User defined
+ * @param {!proto.FrontendRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
  *     call metadata
- * @return {!grpc.web.ClientReadableStream<!proto.Canvas>}
+ * @param {function(?grpc.web.RpcError, ?proto.Canvas)}
+ *     callback The callback function(error, response)
+ * @return {!grpc.web.ClientReadableStream<!proto.Canvas>|undefined}
  *     The XHR Node Readable Stream
  */
 proto.PPClient.prototype.displayCanvas =
-    function(request, metadata) {
-  return this.client_.serverStreaming(this.hostname_ +
+    function(request, metadata, callback) {
+  return this.client_.rpcCall(this.hostname_ +
       '/PP/DisplayCanvas',
       request,
       metadata || {},
-      methodDescriptor_PP_DisplayCanvas);
+      methodDescriptor_PP_DisplayCanvas,
+      callback);
 };
 
 
 /**
- * @param {!proto.FrontendRequest} request The request proto
+ * @param {!proto.FrontendRequest} request The
+ *     request proto
  * @param {?Object<string, string>=} metadata User defined
  *     call metadata
- * @return {!grpc.web.ClientReadableStream<!proto.Canvas>}
- *     The XHR Node Readable Stream
+ * @return {!Promise<!proto.Canvas>}
+ *     Promise that resolves to the response
  */
 proto.PPPromiseClient.prototype.displayCanvas =
     function(request, metadata) {
-  return this.client_.serverStreaming(this.hostname_ +
+  return this.client_.unaryCall(this.hostname_ +
       '/PP/DisplayCanvas',
       request,
       metadata || {},
