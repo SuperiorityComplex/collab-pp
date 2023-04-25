@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Grid, GridItem } from "@chakra-ui/react";
 
-function ColorGrid() {
+function ColorGrid({ drawColor }) {
   const [colors, setColors] = useState(Array(100).fill("gray.100"));
 
   const handleCellClick = (index) => {
     const newColors = [...colors];
-    newColors[index] = "teal.400";
+    newColors[index] = drawColor;
     setColors(newColors);
   };
 
