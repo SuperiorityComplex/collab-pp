@@ -53,8 +53,8 @@ action_queue = []
 canvas_dim = 10
 canvas = []
 
-default_community_delay = 120
-default_user_delay = 60
+default_community_delay = 30
+default_user_delay = 10
 
 class Action():
     def __init__(self, color, row, col):
@@ -385,7 +385,7 @@ def decrement_delays():
             user_delays[user] = val - 1 if val > 0 else 0
 
         for community in community_delays.keys():
-            val = user_delays[community]
+            val = community_delays[community]
             community_delays[community] = val - 1 if val > 0 else 0
 
             if community_delays[community] == 0:
@@ -400,8 +400,14 @@ def community_transaction(community):
     process a community transaction since its delay has hit zero.
     should be holding delay_lock when this is called.
     '''
-    # avoiding nested lock acquiring
+    # reset comm delay
     community_delays[community] = default_community_delay
+
+    # update delay for all users in comm
+    for username in community_transaction_users[community]:
+        user_delays[username] = default_user_delay
+
+    # avoiding nested lock acquiring
     delay_lock.release()
 
     actions = []
