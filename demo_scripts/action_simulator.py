@@ -4,7 +4,7 @@ import random
 from client import Client
 
 
-default_user_delay = 10
+default_user_delay = 7
 
 # rainbow color palette
 colors = ['#ff0000', '#ffa500', '#ffff00', '#008000', '#0000ff', '#4b0082', '#ee82ee']

@@ -54,7 +54,7 @@ canvas_dim = 10
 canvas = []
 
 default_community_delay = 30
-default_user_delay = 10
+default_user_delay = 7
 
 class Action():
     def __init__(self, color, row, col):
@@ -434,7 +434,7 @@ def update_canvas():
     global canvas
 
     while run_event.is_set():
-        time.sleep(0.1)
+        time.sleep(0.005)
         queue_lock.acquire()
 
         if(len(action_queue) > 0):
