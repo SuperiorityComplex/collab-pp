@@ -39,7 +39,7 @@ const Canvas = () => {
     setServerMsg(msg);
     messageTimer.current = setTimeout(() => {
       setServerMsg(null);
-    }, 1000);
+    }, 10000);
   };
 
   const checkDelay = () => {

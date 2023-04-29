@@ -27,7 +27,7 @@ function LoginForm() {
     setError(msg);
     messageTimer.current = setTimeout(() => {
       setError(null);
-    }, 1000);
+    }, 10000);
   };
 
   const handleSubmit = (event) => {
