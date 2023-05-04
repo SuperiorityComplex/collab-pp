@@ -1,0 +1,55 @@
+Running the application:
+Refer to the README for documentation about running the application, including the backend, middleman proxy, and frontend.
+
+Application features:
+User creation, community creation, and community joining:
+User creation involves creating a new user account in the system. Community creation involves creating a new group in the system. Furthermore users can join existing communities to collaborate on a specific canvas. We ensure that each of these actions are atomic so that communities, users, and user’s community memberships are consistent. We create atomicity of these functions by controlling writes via locks to respective data structures.
+
+User actions:
+User actions in our collaborative pixel painting app involve the user interacting with the front-end application to make changes to the canvas. These actions include selecting a color, selecting a pixel to color, and submitting the change to the server. In our system, we need to ensure that user actions are well ordered and distributed to clients in the correct ordering so that the canvas that users see are consistent. In order to create the correct ordering, we use locks when writing to the action queue. Furthermore we ensure that delays after users’ action submissions are enforced and correct. This is done through atomic writes to the user delay dictionary controlled by locks.
+
+Delayed actions:
+Delayed actions in the collaborative pixel painting app involve delaying the user’s pixel change to the canvas by a certain amount of time. With delayed actions, we need to ensure that they are also well-ordered but that delays are valid and activated at the correct times. This is done similarly to user actions but with a scheduled call at a later time.
+
+Community actions:
+Batched actions in the collaborative pixel painting app involve grouping multiple changes made by different users into a single transaction, which is then submitted to the server for processing. We use separate locks and queues when writing batched community actions. This enables us to ensure that these community actions are consistent and well-ordered. Furthermore we use a separate structure for community delays which ensures that delays are consistent and activated at the correct times.
+
+
+Application architecture:
+Backend - Python. See backend directory.
+Like the chat servers we implemented in programming assignments, our project uses a Python backend that implements gRPC protocols. To support the various features, we implemented various data structures and threads, which keep track of delays of users and communities, pending delayed actions, users within communities, and community transactions.
+
+When a client makes a request for an action, the appropriate delay structures are checked to ensure that it has been long enough since the user’s previous request so that they can submit another action. The backend also checks whether the user is pending any delayed or community actions. This is where most of the backend complexity is - checking whether the user’s request is successful or fails for a variety of different reasons.
+
+The canvas is stored as a list of hex codes, and actions are added to an action queue, which is regularly polled to update the backend canvas. When the frontend requests an updated version of the canvas, it is serialized and sent in its entirety to the frontend.
+
+Middleman - Envoy. Information for running is in README.
+Envoy Proxy is a an open-source proxy and service mesh that is often used in microservices architectures to manage traffic between services. We used Envoy Proxy to manage the connection between our React frontend and backend that uses gRPC. Specifically the Envoy Proxy acts as an intermediary between the two services: handling incoming requests from the frontend and forwarding them to the backend. To do this, we needed to define a set of routing rules that specify which requests should be forwarded to which services.
+
+We spun up our Envoy Proxy through Docker – an open-source platform that makes it easy to run and scale applications in isolated and different environments. Then we sent our frontend requests through Envoy which sent these requests to our gRPC backend. The backend response would then be sent to Envoy which sent the response back to our frontend.
+
+Frontend - React. See frontend directory.
+We decided to pick React as it’s a popular front-end JavaScript library for building user interfaces. This design provides many features for building webapps that have high interactivity and real-time updates.
+
+Our application uses React to interface with user inputs like their username as well as options for their paint action. Then it submitted these inputs to be processed on the backend. Furthermore we use a long polling call to display updates to the canvas.
+
+
+Testing:
+See test_scripts directory.
+We validated high-level functionality of the application using granular tests on the different possible user actions. We implemented a Python client separate from the React/Envoy frontend to be able to automate frontend requests to the server.
+
+The results were verified visually by checking whether or not the actions appeared on two open canvases. We wrote test scripts to stress-test the application by simulating many users all creating and submitting actions, and ensuring that the action was actually made. We verified that this random user simulation ran without issues over a long period of time, which was convincing that any edge cases related to distributed action timing were covered. 
+
+
+Findings:
+Backend:
+- At first, we implemented client request actions directly to the canvas. However, due to the concurrency of actions that are possible from multiple users, we needed to lock the canvas whenever it was modified. This turned out to affect performance when the community action was added, since a sufficiently large community action would hold the canvas and make the other actions wait. Thus, we refactored to use a queue of actions which successively adds pixel changes. This ensured well-ordering of events since entire community transactions can be added at once to a locked queue, but it also implicates the polling rate of the queue to add actions to the canvas. We found that 0.1 seconds polling is too slow, causing lag on the frontend UI, so instead we changed to a 0.01 second action commit polling rate.
+- An interesting idea which we did not implement concerns scaling up the application. Currently, the whole canvas is serialized and sent to clients to display. But, for a scaled-up canvas with many users, it may be necessary to communicate action logs and have the client generate the canvas on their own ends, rather than on the backend. In this case, well-ordered events and canvas log consistency would be a bigger issue and need a more robust consistency implementation.
+- We found that it is very important to represent the user state with clear interfaces. If we could restart the design, we would create a struct for user status that lists delay and pending actions for each user. Instead, our implementation abstracts user state across multiple different data structures, which necessitates ugly locking and data structure accesses.
+
+Middleman:
+- Docker and Envoy took a lot of tweaking to get working correctly. Follow the instructions and everything should run smoothly.
+
+Frontend:
+- Lack of gRPC streaming support: While the library supported most of the gRPC functionality, we found that it did not support gRPC streaming. We needed streaming in order to stream real time updates to the canvas. In order to sidestep this issue, we changed our streaming call to a regular gRPC request. We then incorporated this gRPC request for the canvas into a long polling call to enable the canvas to be as real time and responsive as possible.
+
